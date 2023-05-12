@@ -1,0 +1,394 @@
+---
+title: "Synth DiD"
+output:
+  word_document: default
+  html_document: default
+date: "2023-04-21"
+---
+
+```{r setup, include=True}
+#Loading packages
+install.packages("devtools")
+library(devtools)
+devtools::install_github("synth-inference/synthdid")
+library(synthdid)
+install.packages("ggplot2")
+library(ggplot2)
+
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+#Synth DiD Housing
+
+skelleftea_did_house <- read.csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vTwwLHUra6eCXWBjHq_9EAsJhASkgLuUXm9GE6XtTMTMY4G6nnFFDfwYoZ230sYHRElzQb6i4Bg7rgj/pub?gid=1918781231&single=true&output=csv")
+skelleftea_did_house$unit <- as.integer(skelleftea_did_house$unit)
+skelleftea_did_house$treatment <- as.integer(skelleftea_did_house$treatment)
+
+head(skelleftea_did_house)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+```{r}
+setup_house = panel.matrices(skelleftea_did_house, unit = 1, time =3, outcome = 5, treatment = 6, treated.last =TRUE)
+#print(setup)
+head(setup_house)
+
+```
+
+```{r }
+setup_house$treatment <- as.integer(skelleftea_did_house$treatment)
+
+tau.hat.house = synthdid_estimate(setup_house$Y, setup_house$N0, setup_house$T0)
+se = sqrt(vcov(tau.hat.house, method='placebo'))
+sprintf('point estimate: %1.2f', tau.hat.house)
+sprintf('95%% CI (%1.2f, %1.2f)', tau.hat.house - 1.96 * se, tau.hat.house + 1.96 * se)
+plot(tau.hat.house)
+tau.hat.house
+```
+```{r}
+#SC estimate
+sc_house = sc_estimate(setup_house$Y, setup_house$N0, setup_house$T0)
+se_house = sqrt(vcov(sc_house, method='placebo'))
+cat(sprintf("Standard Error: %1.2f\n", se_house))
+sprintf('Point estimate: %1.2f', sc_house)
+sprintf('95%% CI (%1.2f, %1.2f)', sc_house - 1.96 * se_house, sc_house + 1.96 * se_house)
+plot(sc_house)
+
+```
+
+```{r}
+synthdid_units_plot(tau.hat.house, se.method='placebo')
+
+```
+```{r}
+#SPAGHETTI PLOTS FOR HOUSES
+top.controls2 = synthdid_controls(tau.hat.house)[1:5, , drop=FALSE]
+print(top.controls2)
+plot(tau.hat.house, spaghetti.units=rownames(top.controls2))
+```
+
+
+```{r}
+#APARTMENTS
+skelleftea_did_apt <- read.csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vTwwLHUra6eCXWBjHq_9EAsJhASkgLuUXm9GE6XtTMTMY4G6nnFFDfwYoZ230sYHRElzQb6i4Bg7rgj/pub?gid=421251823&single=true&output=csv")
+skelleftea_did_apt$unit <- as.integer(skelleftea_did_apt$unit)
+skelleftea_did_apt$treatment <- as.integer(skelleftea_did_apt$treatment)
+
+head(skelleftea_did_apt)
+```
+
+```{r}
+setup = panel.matrices(skelleftea_did_apt, unit = 2, time =3, outcome = 4, treatment = 6, treated.last =TRUE)
+
+#print(setup)
+head(setup)
+```
+```{r}
+setup$treatment <- as.integer(skelleftea_did_apt$treatment)
+
+tau.hat.apt = synthdid_estimate(setup$Y, setup$N0, setup$T0)
+se = sqrt(vcov(tau.hat.apt, method='placebo'))
+sprintf('point estimate: %1.2f', tau.hat.apt)
+sprintf('95%% CI (%1.2f, %1.2f)', tau.hat.apt - 1.96 * se, tau.hat.apt + 1.96 * se)
+plot(tau.hat.apt)
+
+#synthdid_plot https://rdrr.io/github/synth-inference/synthdid/man/synthdid_plot.html
+
+
+#SC estimate
+sc = sc_estimate(setup$Y, setup$N0, setup$T0)
+se = sqrt(vcov(sc, method='placebo'))
+cat(sprintf("Standard Error: %1.2f\n", se))
+sprintf('Point estimate: %1.2f', sc)
+sprintf('95%% CI (%1.2f, %1.2f)', sc - 1.96 * se, sc + 1.96 * se)
+plot(sc)
+
+#taken from package: https://rdrr.io/github/synth-inference/synthdid/man/sc_estimate.html 
+```
+
+```{r}
+synthdid_units_plot(tau.hat.apt, se.method='placebo')
+
+```
+
+```{r}
+#SPAGHETTI PLOTS FOR APARTMENTS
+top.controls = synthdid_controls(tau.hat.apt)[1:8, , drop=FALSE]
+print(top.controls)
+plot(tau.hat.apt, spaghetti.units=rownames(top.controls))
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+## SYNTH Control
+```{r}
+install.packages('Synth')
+library(Synth)
+install.packages('summarytools')
+library(summarytools)
+
+```
+
+```{r}
+# Read the data from Google Sheets
+skelleftea_raw <- read.csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vSpaqCwlNxPfGbrM7-9Ir0eHLO4Fa2wLPwSP7wrJzHui7DEbLIvVZtUtufcMHmrF_tOQh2SEKpH_pZC/pub?gid=169402081&single=true&output=csv")
+head(skelleftea_raw)
+treated_unit_apts <- "2482 Skellefteå"
+control_units_apts <- c("1080 Karlskrona", "0188 Norrtälje", "2080 Falun", "1494 Lidköping", "883 Västervik", "1463 Mark","0683 Värnamo", "483 Katrineholm","0682 Nässjö")
+
+```
+
+```{r}
+# Convert numeric columns to appropriate data types
+skelleftea_raw$normalized_unemployment_perc <- as.numeric(skelleftea_raw$normalized_unemployment_perc)
+skelleftea_raw$av_age <- as.numeric(skelleftea_raw$av_age)
+skelleftea_raw$median_income <- as.numeric(skelleftea_raw$median_income)
+skelleftea_raw$pop_km2 <- as.numeric(skelleftea_raw$pop_km2)
+skelleftea_raw$population <- as.numeric(skelleftea_raw$population)
+```
+
+```{r}
+#descriptive stats table
+descr(skelleftea_raw[, c("year", "price_sek_m2", "houses_price_value_ratio", "unemployment_num", "normalized_unemployment_perc", "av_age", "median_income", "distance_stockholm_km", "pop_km2", "population", "area_km2")])
+```
+
+```{r}
+#synthetic control
+#APARTMENTS
+dataprep.out <-
+  dataprep(
+    foo = skelleftea_raw,
+    predictors = c("normalized_unemployment_perc", "av_age", "median_income","pop_km2"),
+    predictors.op = "mean",
+    dependent = "price_sek_m2",
+    unit.variable = "unit",
+    time.variable = "year",
+    treatment.identifier = treated_unit_apts,
+    controls.identifier = control_units_apts,
+    time.predictors.prior = c(2006:2016), 
+    time.optimize.ssr = c(2006:2016),
+    unit.names.variable = "municipality",
+    time.plot = 2006:2021
+  )
+
+```
+
+```{r}
+# run the synth command to create the synthetic control
+# for apartments
+synth.out <- synth(dataprep.out, Sigf.ipop=2)
+synth.tables <- synth.tab(dataprep.res = dataprep.out,
+                          synth.res = synth.out
+)
+synth.tables$tab.w[1:14, ]
+synth.tables$tab.pred[1:3, ]
+path.plot(synth.res = synth.out,
+          dataprep.res = dataprep.out,
+          Ylab = "Housing prices (SEK per square meter)",
+          Xlab = "Year",
+          Legend = c("Skellefteå","synthetic Skellefteå"),
+          Legend.position = "bottomright"
+)
+gaps.plot(synth.res = synth.out,
+          dataprep.res = dataprep.out,
+          Ylab = "Housing prices (SEK per square meter)",
+          Xlab = "Year",
+          Main = NA
+)
+```
+```{r}
+#CALCULATING NUMERICAL TREATMENT EFFECT
+
+# Calculate the gaps between the treated unit and its synthetic control unit
+# Calculate the treatment effect estimates for each time period in the treatment period
+
+
+gaps<- dataprep.out$Y1plot-(
+        dataprep.out$Y0plot%*%synth.out$solution.w
+        ) ; gaps
+```
+
+```{r}
+#placebo test APARTMENTS
+install.packages("remotes")
+remotes::install_github("bcastanho/SCtools")
+library(SCtools)
+placebos <- generate.placebos(dataprep.out, synth.out, Sigf.ipop = 3)
+plot_placebos(placebos, xlab = "Time (year)", ylab = "Housing price per Square Meter (SEK)")
+mspe.plot(placebos, discard.extreme = TRUE, mspe.limit = 1, plot.hist = TRUE, xlab = "Time (year)", ylab = "Housing price (SEK)")
+```
+
+```{r}
+#ROBUSTNESS CHECK - REMOVING DONOR W HIGHEST WEIGHT 0.348	"883 Västervik"
+#APARTMENTS
+control_units_apts_rob <- c("1080 Karlskrona", "0188 Norrtälje", "2080 Falun", "1494 Lidköping",  "1463 Mark","0683 Värnamo", "483 Katrineholm","0682 Nässjö")
+dataprep.out.rob <-
+  dataprep(
+    foo = skelleftea_raw,
+    predictors = c("normalized_unemployment_perc", "av_age", "median_income","pop_km2"),
+    predictors.op = "mean",
+    dependent = "price_sek_m2",
+    unit.variable = "unit",
+    time.variable = "year",
+    treatment.identifier = treated_unit_apts,
+    controls.identifier = control_units_apts_rob,
+    time.predictors.prior = c(2006:2021), 
+    time.optimize.ssr = c(2006:2021),
+    unit.names.variable = "municipality",
+    time.plot = 2006:2021
+  )
+
+# run the synth command to create the synthetic control
+# for apartments
+synth.out.rob <- synth(dataprep.out.rob, Sigf.ipop=2)
+synth.tables <- synth.tab(dataprep.res = dataprep.out.rob,
+                          synth.res = synth.out.rob
+)
+synth.tables$tab.w[1:14, ]
+synth.tables$tab.pred[1:3, ]
+path.plot(synth.res = synth.out.rob,
+          dataprep.res = dataprep.out.rob,
+          Ylab = "Housing prices (SEK per square meter)",
+          Xlab = "Year",
+          Legend = c("Skellefteå","synthetic Skellefteå"),
+          Legend.position = "bottomright"
+)
+gaps.plot(synth.res = synth.out.rob,
+          dataprep.res = dataprep.out.rob,
+          Ylab = "Housing prices (SEK per square meter)",
+          Xlab = "Year",
+          Main = NA
+)
+
+
+```
+
+
+
+
+```{r}
+#HOUSES
+
+treated_unit_houses <- "2482 Skellefteå"
+control_units_houses <- c("1080 Karlskrona", "0188 Norrtälje", "2184 Hudiksvall","1499 Falköping", "2080 Falun", "1494 Lidköping", "883 Västervik", "1463 Mark","0683 Värnamo", "483 Katrineholm","0682 Nässjö") 
+dataprep.out.houses <-
+  dataprep(
+    foo = skelleftea_raw,
+    predictors = c("normalized_unemployment_perc", "av_age", "median_income","pop_km2"),
+    predictors.op = "mean",
+    dependent = "houses_price_value_ratio",
+    unit.variable = "unit",
+    time.variable = "year",
+    treatment.identifier = treated_unit_houses,
+    controls.identifier = control_units_houses,
+    time.predictors.prior = c(2006:2016), 
+    time.optimize.ssr = c(2006:2016),
+    unit.names.variable = "municipality",
+    time.plot = 2006:2021
+  )
+
+```
+
+```{r}
+# run the synth command to create the synthetic control
+# for houses
+synth.out.houses <- synth(dataprep.out.houses, Sigf.ipop=2)
+synth.tables.houses <- synth.tab(dataprep.res = dataprep.out.houses,
+                          synth.res = synth.out.houses
+)
+synth.tables.houses$tab.w[1:14, ]
+synth.tables.houses$tab.pred[1:3, ]
+path.plot(synth.res = synth.out.houses,
+          dataprep.res = dataprep.out.houses,
+          Ylab = "Housing prices (K/T) for houses",
+          Xlab = "Year",
+          Legend = c("Skellefteå","Synthetic Skellefteå"),
+          Legend.position = "bottomright"
+)
+gaps.plot(synth.res = synth.out.houses,
+          dataprep.res = dataprep.out.houses,
+          Ylab = "Housing prices (K/T) for houses",
+          Xlab = "Year",
+          Main = NA
+)
+```
+```{r}
+# Calculate the gaps between the treated unit and its synthetic control unit
+# Calculate the treatment effect estimates for each time period in the treatment period
+gaps<- dataprep.out.houses$Y1plot-(
+        dataprep.out.houses$Y0plot%*%synth.out.houses$solution.w
+        ) ; gaps
+```
+
+
+```{r}
+#ROBUSTNESS CHECK - REMOVING DONOR W HIGHEST WEIGHT 0.348	2184 Mark
+#HOUSES
+control_units_houses_rob <- c("1080 Karlskrona", "0188 Norrtälje", "2080 Falun", "2184 Hudiksvall","1499 Falköping", "1494 Lidköping", "883 Västervik","0683 Värnamo", "483 Katrineholm","0682 Nässjö")
+dataprep.out.rob2 <-
+  dataprep(
+    foo = skelleftea_raw,
+    predictors = c("normalized_unemployment_perc", "av_age", "median_income","pop_km2"),
+    predictors.op = "mean",
+    dependent = "houses_price_value_ratio",
+    unit.variable = "unit",
+    time.variable = "year",
+    treatment.identifier = treated_unit_houses,
+    controls.identifier = control_units_apts_rob,
+    time.predictors.prior = c(2006:2016), 
+    time.optimize.ssr = c(2006:2016),
+    unit.names.variable = "municipality",
+    time.plot = 2006:2021
+  )
+
+# run the synth command to create the synthetic control
+# for apartments
+synth.out.rob2 <- synth(dataprep.out.rob2, Sigf.ipop=2)
+synth.tables <- synth.tab(dataprep.res = dataprep.out.rob2,
+                          synth.res = synth.out.rob2
+)
+synth.tables$tab.w[1:14, ]
+synth.tables$tab.pred[1:3, ]
+path.plot(synth.res = synth.out.rob2,
+          dataprep.res = dataprep.out.rob2,
+          Ylab = "Housing prices (K/T) for houses",
+          Xlab = "Year",
+          Legend = c("Skellefteå","synthetic Skellefteå"),
+          Legend.position = "bottomright"
+)
+gaps.plot(synth.res = synth.out.rob2,
+          dataprep.res = dataprep.out.rob2,
+          Ylab = "Housing prices (K/T) for houses",
+          Xlab = "Year",
+          Main = NA
+)
+
+
+```
+
+```{r}
+#placebo test HOUSES
+install.packages("remotes")
+remotes::install_github("bcastanho/SCtools")
+library(SCtools)
+placebos <- generate.placebos(dataprep.out.houses, synth.out.houses, Sigf.ipop = 3)
+plot_placebos(placebos, xlab = "Time (year)", ylab = "Housing price (K/T) for houses")
+mspe.plot(placebos, discard.extreme = TRUE, mspe.limit = 1, plot.hist = TRUE)
+```
+
+
+```{r}
+
+```
+
+```{r}
+
+```
